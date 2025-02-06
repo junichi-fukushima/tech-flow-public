@@ -1,0 +1,33 @@
+name: build-test
+
+on:
+  push:
+
+env:
+  TEMPLATE_FILE: backend/template.yaml
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v3
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
+
+      - name: Verify AWS Caller Identity
+        run: aws sts get-caller-identity
+
+      - name: Build SAM Application
+        run: sam build --template-file ${{ env.TEMPLATE_FILE }}

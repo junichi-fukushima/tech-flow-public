@@ -1,0 +1,94 @@
+name: Deploy Lambda
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'デプロイするブランチ'
+        required: true
+        default: 'main'
+      function:
+        description: 'デプロイする関数名 (例: ClicksFunction)'
+        required: false # 入力がない場合は全関数をデプロイ
+
+env:
+  TEMPLATE_FILE: backend/template-deploy.yaml
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
+
+      - name: Export Secrets
+        run: |
+          echo "S3_BUCKET=${{ secrets.S3_BUCKET }}" >> $GITHUB_ENV
+          echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> $GITHUB_ENV
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
+          echo "DB_HOST=${{ secrets.DB_HOST }}" >> $GITHUB_ENV
+          echo "DB_PORT=${{ secrets.DB_PORT }}" >> $GITHUB_ENV
+          echo "DB_NAME=${{ secrets.DB_NAME }}" >> $GITHUB_ENV
+          echo "CLAUDE_ENDPOINT_API=${{ secrets.CLAUDE_ENDPOINT_API }}" >> $GITHUB_ENV
+          echo "METARANK_HOST=${{ secrets.METARANK_HOST }}" >> $GITHUB_ENV
+
+      - name: Build SAM Application
+        run: sam build --template-file ${{ env.TEMPLATE_FILE }}
+
+      - name: Deploy SAM Application
+        run: |
+            if [[ -n "${{ github.event.inputs.function }}" ]]; then
+              echo "Deploying specific function: ${{ github.event.inputs.function }}"
+              sam deploy \
+                --template-file .aws-sam/build/template.yaml \
+                --stack-name handlers \
+                --region ${{ secrets.AWS_REGION }} \
+                --capabilities CAPABILITY_NAMED_IAM \
+                --no-fail-on-empty-changeset \
+                --no-confirm-changeset \
+                --no-disable-rollback \
+                --s3-bucket ${{ secrets.S3_BUCKET }} \
+                --resource ${{ github.event.inputs.function }} \
+                --parameter-overrides \
+                  DBUsername=${{ secrets.DB_USERNAME }} \
+                  DBPassword=${{ secrets.DB_PASSWORD }} \
+                  DBHost=${{ secrets.DB_HOST }} \
+                  DBPort=${{ secrets.DB_PORT }} \
+                  DBName=${{ secrets.DB_NAME }} \
+                  CLAUDEENDPOINTAPI=${{ secrets.CLAUDE_ENDPOINT_API }} \
+                  MetarankHost=${{ secrets.METARANK_HOST }}
+            else
+              echo "Deploying all functions"
+              sam deploy \
+                --template-file .aws-sam/build/template.yaml \
+                --stack-name handlers \
+                --region ${{ secrets.AWS_REGION }} \
+                --capabilities CAPABILITY_NAMED_IAM \
+                --no-fail-on-empty-changeset \
+                --no-confirm-changeset \
+                --s3-bucket ${{ secrets.S3_BUCKET }} \
+                --no-disable-rollback \
+                --parameter-overrides \
+                  DBUsername=${{ secrets.DB_USERNAME }} \
+                  DBPassword=${{ secrets.DB_PASSWORD }} \
+                  DBHost=${{ secrets.DB_HOST }} \
+                  DBPort=${{ secrets.DB_PORT }} \
+                  DBName=${{ secrets.DB_NAME }} \
+                  CLAUDEENDPOINTAPI=${{ secrets.CLAUDE_ENDPOINT_API }} \
+                  MetarankHost=${{ secrets.METARANK_HOST }}
+            fi

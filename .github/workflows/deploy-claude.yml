@@ -1,0 +1,63 @@
+name: Deploy claude API
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'デプロイするブランチ'
+        required: true
+        default: 'main'
+
+env:
+  TEMPLATE_FILE: packages/claude/template-deploy.yaml
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      # Python 3.9 をセットアップ
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Export Secrets
+        run: |
+          echo "S3_BUCKET=${{ secrets.S3_BUCKET }}" >> $GITHUB_ENV
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
+
+      - name: Verify AWS Caller Identity
+        run: aws sts get-caller-identity
+
+      - name: Build SAM Application
+        run: sam build --template-file ${{ env.TEMPLATE_FILE }}
+
+      - name: Deploy SAM Application
+        run: |
+            echo "Deploying all functions"
+            sam deploy \
+              --template-file .aws-sam/build/template.yaml \
+              --stack-name claude \
+              --region ${{ secrets.AWS_REGION }} \
+              --capabilities CAPABILITY_NAMED_IAM \
+              --no-fail-on-empty-changeset \
+              --no-confirm-changeset \
+              --s3-bucket ${{ secrets.S3_BUCKET }} \
+              --no-disable-rollback
