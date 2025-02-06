@@ -1,0 +1,21 @@
+version: "3"
+services:
+  db:
+    image: mysql:8.0
+    volumes:
+      - ./db/mysql_data:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=tech-flow
+      - MYSQL_ROOT_PASSWORD=password
+      - TZ=Asia/Tokyo
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_general_ci
+      --default-time-zone='Asia/Tokyo'
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 6

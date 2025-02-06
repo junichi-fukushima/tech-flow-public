@@ -1,0 +1,116 @@
+openapi: 3.0.3
+info:
+  title: tech flow API
+  description: API for tech flow
+  version: 1.0.0
+servers:
+  - url: https://9fj4nvjuf0.execute-api.ap-northeast-1.amazonaws.com/Prod
+paths:
+  /articles:
+    get:
+      summary: Retrieve a list of articles
+      description: Fetch articles with optional filtering, and pagination.
+      parameters:
+        - name: category
+          in: query
+          description: Filter articles by category（例:"プログラミング言語", "フレームワーク"）
+          required: false
+          schema:
+            type: string
+        - name: tag
+          in: query
+          description: Filter articles by tag（例:"Python", "React"）
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Number of articles to return (for pagination)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 10
+        - name: offset
+          in: query
+          description: Number of articles to skip (for pagination)
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: keyword
+          in: query
+          description: Filter articles by keyword
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of articles（pub_dateの降順）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          description: Article ID
+                        category:
+                          type: string
+                          description: name of the category this article belongs to（例:"プログラミング言語", "フレームワーク"）
+                        tags:
+                            type: array
+                            items:
+                                type: string
+                            description: name of the tag this article belongs to（例:"Python", "React"）
+                        title:
+                          type: string
+                          description: Title of the article
+                        link:
+                          type: string
+                          format: uri
+                          description: URL link to the article
+                        description:
+                          type: string
+                          description: Article description
+                        pub_date:
+                          type: string
+                          format: date-time
+                          description: Publication date of the article
+                        image_url:
+                          type: string
+                          description: Image of Feed or Article
+                        created_at:
+                          type: string
+                          format: date-time
+                          description: Article creation timestamp
+                        updated_at:
+                          type: string
+                          format: date-time
+                          description: Article last updated timestamp
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        description: Total number of articles matching the query
+                      limit:
+                        type: integer
+                        description: Limit used for the query
+                      offset:
+                        type: integer
+                        description: Offset used for the query
+                      ranking_event_id:
+                        type: integer
+                        description: Offset used for the query
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Internal server error
+  

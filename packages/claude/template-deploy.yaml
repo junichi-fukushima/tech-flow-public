@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: claude APIのデプロイファイル
+
+Parameters:
+  Env:
+    Type: String
+    Default: production
+
+Globals:
+  Function:
+    MemorySize: 128
+    Environment:
+      Variables:
+        Env: !Ref Env
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+    VpcConfig:
+      SecurityGroupIds:
+        - sg-06d3c65229d001389  # Lambdaに適用するセキュリティグループID
+      SubnetIds:
+        - subnet-05870c0014770c8be # private(NOTE: lambdaから外部アクセスするにはprivate + nat-gwが基本)
+  Api:
+    TracingEnabled: true
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'Content-Type'"
+      AllowOrigin: "'*'"
+      AllowCredentials: false
+
+Resources:
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'OPTIONS,GET,POST'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+        AllowCredentials: false
+  ClaudeFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ClaudeFunction}"
+      RetentionInDays: 14
+  ClaudeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: main.lambda_handler
+      Runtime: python3.9
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 30
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Role: arn:aws:iam::329599641965:role/claude
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /claude
+            Method: GET
+            RestApiId: !Ref ApiGateway
+
+  # cloud formation
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+
+  # cloud log
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+
+Outputs:
+  ClaudeFunctionAPI:
+    Description: claudeAPIのAPI Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/claude/"
+  ClaudeFunction:
+    Description: claudeAPIのARN
+    Value: !GetAtt ClaudeFunction.Arn
+  ClaudeFunctionIamRole:
+    Description: claudeAPIのIAMロール
+    Value: !GetAtt ClaudeFunction.Arn

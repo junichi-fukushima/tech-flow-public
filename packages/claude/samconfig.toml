@@ -1,0 +1,5 @@
+version = 0.1
+[default.local_start_api.parameters]
+profile = "bedrock_profile"
+region = "ap-northeast-1"
+Env = "production"

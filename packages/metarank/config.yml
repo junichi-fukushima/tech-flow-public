@@ -1,0 +1,180 @@
+# This is a configuration file for MetaRank.
+# https://docs.metarank.ai/reference/overview
+
+features:
+- type: interacted_with
+  name: Click
+  interaction: Click
+  field:
+  - item.title
+  - item.description
+  - item.category
+  - item.tags
+  scope: user
+- type: string
+  name: category
+  field: item.category
+  scope: item
+  encode: onehot
+  values:
+  - AI
+  - IoT
+  - NONE
+  - インフラ
+  - フレームワーク
+  - プログラミング言語
+  - マネジメント
+  - 最新技術
+
+- type: string
+  name: tags
+  field: item.tags
+  scope: item
+  encode: index
+  values:
+  - Python
+  - Java
+  - JavaScript
+  - Ruby
+  - C++
+  - C#
+  - PHP
+  - Swift
+  - Go
+  - Kotlin
+  - TypeScript
+  - Rust
+  - Perl
+  - R
+  - Dart
+  - Lua
+  - Haskell
+  - Julia
+  - Scala
+  - React
+  - Angular
+  - Vue
+  - Django
+  - Ruby on Rails
+  - Spring
+  - Laravel
+  - Flask
+  - Express
+  - ASP.NET
+  - Svelte
+  - Next.js
+  - Nuxt.js
+  - Symfony
+  - Meteor
+  - CodeIgniter
+  - CakePHP
+  - Play
+  - Phoenix
+  - Ember.js
+  - AWS
+  - Azure
+  - GCP
+  - Docker
+  - Kubernetes
+  - Ansible
+  - Terraform
+  - Chef
+  - Puppet
+  - Vagrant
+  - OpenStack
+  - VMware
+  - Jenkins
+  - Nginx
+  - Apache
+  - Cloudflare
+  - ELK Stack
+  - Grafana
+  - Prometheus
+  - CI/CD
+  - Quantum Computing
+  - Blockchain
+  - Edge Computing
+  - 5G
+  - AR
+  - VR
+  - Metaverse
+  - Web3
+  - Cybersecurity
+  - Biotech
+  - Autonomous Vehicles
+  - 3D Printing
+  - Nanotechnology
+  - Robotics
+  - Fintech
+  - Digital Twins
+  - Machine Learning
+  - Deep Learning
+  - Natural Language Processing
+  - Computer Vision
+  - Generative AI
+  - Reinforcement Learning
+  - AI Ethics
+  - Neural Networks
+  - Speech Recognition
+  - Chatbots
+  - Recommendation Systems
+  - AI Governance
+  - Explainable AI
+  - AI in Healthcare
+  - AI in Finance
+  - IoT Devices
+  - Smart Homes
+  - Smart Cities
+  - Edge Devices
+  - Sensors
+  - Actuators
+  - Wearables
+  - Industrial IoT
+  - Connected Cars
+  - Embedded Systems
+  - Wireless Communication
+  - M2M
+  - IoT Security
+  - Zigbee
+  - LoRaWAN
+  - MQTT
+
+models:
+  shuffle:
+    type: shuffle
+    maxPositionChange: 5
+  similar:
+    type: als
+    interactions:
+    - Click
+    iterations: 100
+    factors: 100
+    userReg: 0.01
+    itemReg: 0.01
+    store:
+      type: hnsw
+      m: 32
+      ef: 200
+    selector:
+      accept: true
+  trending:
+    type: trending
+    weights:
+    - interaction: Click
+      weight: 1.0
+      decay: 1.0
+      window: 30d
+    selector:
+      accept: true
+  xgboost:
+    type: lambdamart
+    backend:
+      type: xgboost # supported values: xgboost, lightgbm for lambdamart model
+      iterations: 100 # optional (default 100), number of iterations while training the model
+      seed: 0 # optional (default = random), a seed to make training deterministic
+    weights: # types and weights of interactions used in the model training
+      Click: 1 # you can increase the weight of some events to hint model to optimize more for them
+    features: # features from the previous section used in the model
+      - category
+      - tags
+      - Click

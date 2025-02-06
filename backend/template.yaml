@@ -1,0 +1,175 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  handlers
+
+  Sample SAM Template for handlers
+
+Globals:
+  Function:
+    Timeout: 900 # バッチの処理が終わらないので、一旦900にしておく
+    Environment:
+      Variables:
+        DB_USERNAME:
+        DB_PASSWORD:
+        DB_HOST:
+        DB_PORT:
+        DB_NAME:
+        USE_CLAUDE:
+        CLAUDE_ENDPOINT_API:
+        METARANK_HOST:
+    MemorySize: 128
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+  Api:
+    TracingEnabled: true
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'Content-Type'"
+      AllowOrigin: "'http://localhost:3001'"
+      AllowCredentials: "'true'"
+
+Resources:
+  ClicksFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: handlers/clicks/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+      - arm64
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            Path: /clicks
+            Method: POST
+  ArticlesFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: handlers/articles/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+      - arm64
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            Path: /articles
+            Method: GET
+  RssFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: handlers/rss/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+      - arm64
+      # NOTE: 本番では、Apiはない&cronのスケジュールの設定がされている
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            Path: /rss
+            Method: GET
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: handlers/auth/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - arm64
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            Path: /auth
+            Method: GET
+  FavCategoryFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: handlers/favcategory/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - arm64
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            Path: /favorites/categories
+            Method: POST
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+Outputs:
+  ClicksAPI:
+    Description: clicksAPIのAPI Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/clicks/"
+  ClicksFunction:
+    Description: clicksAPIのARN
+    Value: !GetAtt ClicksFunction.Arn
+  ClicksFunctionIamRole:
+    Description: clicksAPIのIAMロール
+    Value: !GetAtt ClicksFunctionRole.Arn
+  ArticlesAPI:
+    Description: 記事所得APIのAPI Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/articles/"
+  ArticlesFunction:
+    Description: 記事所得APIのARN
+    Value: !GetAtt ArticlesFunction.Arn
+  ArticlesFunctionIamRole:
+    Description: 記事所得APIのIAMロール
+    Value: !GetAtt ArticlesFunctionRole.Arn
+  # NOTE: 本番ではRssAPIは存在しない。
+  RssAPI:
+    Description: 記事収集バッチのAPI Gateway endpoint URL
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/rss"
+  RssFunction:
+    Description: 記事収集バッチのARN
+    Value: !GetAtt RssFunction.Arn
+  RssFunctionIamRole:
+    Description: 記事収集バッチのIAMロール
+    Value: !GetAtt RssFunctionRole.Arn
+  AuthAPI:
+    Description: 匿名認証APIのAPI Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/auth/"
+  AuthFunction:
+    Description: 匿名認証APIのARN
+    Value: !GetAtt AuthFunction.Arn
+  AuthFunctionIamRole:
+    Description: 匿名認証APIのIAMロール
+    Value: !GetAtt AuthFunctionRole.Arn
+  FavCategoryAPI:
+    Description: ユーザーのお気に入りカテゴリーを登録するAPIのAPI Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/favorites/categories/"
+  FavCategoryFunction:
+    Description: ユーザーのお気に入りカテゴリーを登録するAPIのARN
+    Value: !GetAtt FavCategoryFunction.Arn
+  FavCategoryFunctionIamRole:
+    Description: ユーザーのお気に入りカテゴリーを登録するAPIのIAMロール
+    Value: !GetAtt FavCategoryFunctionRole.Arn

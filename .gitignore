@@ -1,0 +1,14 @@
+# IDE
+.vscode
+.idea
+
+# backend
+backend/.DS_Store
+backend/.aws-sam
+backend/db
+
+# packages配下のclaude
+packages/claude/.aws-sam
+
+# その他
+.DS_Store

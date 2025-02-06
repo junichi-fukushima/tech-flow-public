@@ -1,0 +1,213 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: go用のデプロイファイル
+
+Parameters:
+  DBUsername:
+    Type: String
+    Description: Database username
+  DBPassword:
+    Type: String
+    Description: Database password
+  DBHost:
+    Type: String
+    Description: Database host
+  DBPort:
+    Type: String
+    Default: "3306"
+    Description: Database port
+  DBName:
+    Type: String
+    Description: Database name
+  CLAUDEENDPOINTAPI:
+    Type: String
+    Description: Claude endpoint API
+  MetarankHost:
+    Type: String
+    Description: Metarank host
+Globals:
+  Function:
+    Timeout: 90
+    Environment:
+      Variables:
+        DB_USERNAME: !Ref DBUsername
+        DB_PASSWORD: !Ref DBPassword
+        DB_HOST: !Ref DBHost
+        DB_PORT: !Ref DBPort
+        DB_NAME: !Ref DBName
+        CLAUDE_ENDPOINT_API: !Ref CLAUDEENDPOINTAPI
+        METARANK_HOST: !Ref MetarankHost
+    VpcConfig:
+        SecurityGroupIds:
+          - sg-06d3c65229d001389  # Lambdaに適用するセキュリティグループID
+        SubnetIds:
+          - subnet-05870c0014770c8be # private(NOTE: lambdaから外部アクセスするにはprivate + nat-gwが基本)
+    MemorySize: 128
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+  Api:
+    TracingEnabled: true
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'Content-Type'"
+      AllowOrigin: "'https://techflow.tokyo'"
+      AllowCredentials: true
+
+Resources:
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'OPTIONS,GET,POST'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'https://techflow.tokyo'"
+        AllowCredentials: true
+
+  ClicksFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: handlers/clicks/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+      - x86_64
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            Path: /clicks
+            Method: POST
+            RestApiId: !Ref ApiGateway
+
+  ArticlesFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: handlers/articles/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+      - x86_64
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            Path: /articles
+            Method: GET
+            RestApiId: !Ref ApiGateway
+
+  RssFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      Timeout: 900 # バッチだけ長めにしておく
+      CodeUri: handlers/rss/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+      - x86_64
+      Events:
+        Schedule1:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0/4 * * * ? *) # 15分おき
+
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: handlers/auth/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - x86_64
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            Path: /auth
+            Method: GET
+            RestApiId: !Ref ApiGateway
+
+  FavCategoryFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: handlers/favcategory/
+      Handler: bootstrap
+      Runtime: provided.al2023
+      Architectures:
+        - x86_64
+      Events:
+        CatchAll:
+          Type: Api
+          Properties:
+            Path: /favorites/categories
+            Method: POST
+            RestApiId: !Ref ApiGateway
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+
+Outputs:
+  ClicksAPI:
+    Description: clicksAPIのAPI Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/clicks/"
+  ClicksFunction:
+    Description: clicksAPIのARN
+    Value: !GetAtt ClicksFunction.Arn
+  ClicksFunctionIamRole:
+    Description: clicksAPIのIAMロール
+    Value: !GetAtt ClicksFunctionRole.Arn
+  ArticlesAPI:
+    Description: 記事所得APIのAPI Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/articles/"
+  ArticlesFunction:
+    Description: 記事所得APIのARN
+    Value: !GetAtt ArticlesFunction.Arn
+  ArticlesFunctionIamRole:
+    Description: 記事所得APIのIAMロール
+    Value: !GetAtt ArticlesFunctionRole.Arn
+  RssFunction:
+    Description: 記事収集バッチのARN
+    Value: !GetAtt RssFunction.Arn
+  RssFunctionIamRole:
+    Description: 記事収集バッチのIAMロール
+    Value: !GetAtt RssFunctionRole.Arn
+  AuthAPI:
+    Description: 匿名認証APIのAPI Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/auth/"
+  AuthFunction:
+    Description: 匿名認証APIのARN
+    Value: !GetAtt AuthFunction.Arn
+  AuthFunctionIamRole:
+    Description: 匿名認証APIのIAMロール
+    Value: !GetAtt AuthFunctionRole.Arn
+  FavCategoryAPI:
+    Description: ユーザーのお気に入りカテゴリーを登録するAPIのAPI Gateway endpoint URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/favorites/categories/"
+  FavCategoryFunction:
+    Description: ユーザーのお気に入りカテゴリーを登録するAPIのARN
+    Value: !GetAtt FavCategoryFunction.Arn
+  FavCategoryFunctionIamRole:
+    Description: ユーザーのお気に入りカテゴリーを登録するAPIのIAMロール
+    Value: !GetAtt FavCategoryFunctionRole.Arn
