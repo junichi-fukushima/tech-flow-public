@@ -33,14 +33,13 @@ root
 
 ## 全体構成
 ### デプロイ機構
-![image](https://github.com/user-attachments/assets/faff8d8f-a96a-4347-aadc-a6a383f0a61c)
+![image](https://github.com/user-attachments/assets/6bb25281-4345-4cb3-bead-cb9d80809184)
+
 
 
 ### アーキテクチャ
-![image](https://github.com/user-attachments/assets/0a2d0ae7-b4b6-47be-9d92-d4166c2670e9)
+![image](https://github.com/user-attachments/assets/109f5d82-ee9b-4754-ad70-adf1786776f6)
 
-
-- https://app.diagrams.net/#G1Mo76OwvB8x1hrV5e3bpPKdsd_FRGIpnZ#%7B%22pageId%22%3A%22Ht1M8jgEwFfnCIfOTk4-%22%7D
 
 ## バックエンドのアーキテクチャスタイル
 ![20230621183841](https://github.com/user-attachments/assets/a52d2286-2c65-4bb0-aeca-5a1e77d1ee43)
