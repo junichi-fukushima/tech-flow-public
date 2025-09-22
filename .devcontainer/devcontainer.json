@@ -4,7 +4,7 @@
   "name": "Node.js & TypeScript & Go",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2.12.0": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2.12.4": {
       "version": "latest",
       "moby": true
     },
